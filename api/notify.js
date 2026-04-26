@@ -3,7 +3,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method Not Allowed' });
   }
 
+  // Validar variáveis de ambiente obrigatórias
+  if (!process.env.RESEND_API_KEY) {
+    console.error('❌ RESEND_API_KEY não configurada');
+    return res.status(500).json({ error: 'Configuração faltando: RESEND_API_KEY não definida' });
+  }
+
   const { nome, email, celular, type = 'confirmation', event_link, event_date } = req.body;
+
+  // Validar campos obrigatórios
+  if (!nome || !email) {
+    return res.status(400).json({ error: 'Campos obrigatórios faltando: nome e email' });
+  }
 
   let subject = '';
   let html = '';
@@ -171,9 +182,12 @@ Te vejo no workshop! 💪`;
     wppText = `🚨 ${nome}, ESTAMOS QUASE LÁ! Em 1 hora entraremos ao vivo. Pega seu café, seu bloco de notas e clica no link para acessar a sala: [LINK_AQUI]`;
   }
 
+  const results = { email: null, whatsapp: null };
+  const errors = [];
+
   try {
     // 1. Enviar E-mail via Resend
-    // Usando fetch nativo para evitar precisar instalar o pacote 'resend'
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
     const emailResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -181,39 +195,84 @@ Te vejo no workshop! 💪`;
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Workshop Claude <onboarding@resend.dev>', 
+        from: `Workshop Claude <${fromEmail}>`,
         to: [email],
         subject: subject,
         html: html
       })
     });
 
-    // 2. Enviar WhatsApp via Evolution API
-    const numeroLimpo = celular.replace(/\D/g, ''); 
-    const numeroCompleto = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`; 
+    const emailData = await emailResponse.json();
 
-    const whatsappPayload = {
-      "number": numeroCompleto,
-      "options": { 
-        "delay": 1200, 
-        "presence": "composing" 
-      },
-      "text": wppText
-    };
-
-    const wppResponse = await fetch(process.env.EVOLUTION_API_URL, {
-      method: 'POST',
-      headers: {
-        'apikey': process.env.EVOLUTION_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(whatsappPayload)
-    });
-
-    console.log(`✅ Notificações enviadas para ${nome} (${type})`);
-    return res.status(200).json({ message: 'Notificações enviadas com sucesso' });
+    if (!emailResponse.ok) {
+      console.error('❌ Erro Resend:', emailResponse.status, JSON.stringify(emailData));
+      errors.push({ service: 'email', status: emailResponse.status, detail: emailData });
+    } else {
+      console.log(`✅ E-mail enviado para ${email} | ID: ${emailData.id}`);
+      results.email = { success: true, id: emailData.id };
+    }
   } catch (error) {
-    console.error('Erro nas notificações:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('❌ Exceção ao enviar e-mail:', error.message);
+    errors.push({ service: 'email', detail: error.message });
   }
+
+  // 2. Enviar WhatsApp via Evolution API (somente se celular informado)
+  if (celular && process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY) {
+    try {
+      const numeroLimpo = celular.replace(/\D/g, '');
+      const numeroCompleto = numeroLimpo.startsWith('55') ? numeroLimpo : `55${numeroLimpo}`;
+
+      const whatsappPayload = {
+        number: numeroCompleto,
+        options: {
+          delay: 1200,
+          presence: 'composing'
+        },
+        text: wppText
+      };
+
+      const wppResponse = await fetch(process.env.EVOLUTION_API_URL, {
+        method: 'POST',
+        headers: {
+          apikey: process.env.EVOLUTION_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(whatsappPayload)
+      });
+
+      const wppData = await wppResponse.json();
+
+      if (!wppResponse.ok) {
+        console.error('❌ Erro WhatsApp:', wppResponse.status, JSON.stringify(wppData));
+        errors.push({ service: 'whatsapp', status: wppResponse.status, detail: wppData });
+      } else {
+        console.log(`✅ WhatsApp enviado para ${numeroCompleto}`);
+        results.whatsapp = { success: true };
+      }
+    } catch (error) {
+      console.error('❌ Exceção ao enviar WhatsApp:', error.message);
+      errors.push({ service: 'whatsapp', detail: error.message });
+    }
+  } else if (!celular) {
+    console.log('ℹ️ Celular não informado — WhatsApp ignorado');
+  } else {
+    console.log('ℹ️ EVOLUTION_API_URL ou EVOLUTION_API_KEY não configurados — WhatsApp ignorado');
+  }
+
+  console.log(`📬 Notificações processadas para ${nome} (${type}) | erros: ${errors.length}`);
+
+  if (errors.length > 0 && !results.email) {
+    // Falha total: e-mail não enviado
+    return res.status(500).json({
+      error: 'Falha ao enviar notificações',
+      details: errors,
+      results
+    });
+  }
+
+  return res.status(200).json({
+    message: errors.length > 0 ? 'Notificações enviadas com avisos' : 'Notificações enviadas com sucesso',
+    results,
+    warnings: errors.length > 0 ? errors : undefined
+  });
 }
