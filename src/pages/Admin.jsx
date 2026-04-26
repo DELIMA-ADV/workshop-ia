@@ -42,7 +42,9 @@ function Admin() {
   const [logs, setLogs] = useState([]);
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
   const [editingTemplate, setEditingTemplate] = useState(null);
-  const [activeTab, setActiveTab] = useState('leads'); // 'leads' | 'templates' | 'logs'
+  const [activeTab, setActiveTab] = useState('leads'); // 'leads' | 'templates' | 'logs' | 'settings'
+  const [eventLink, setEventLink] = useState(''); // Link do evento
+  const [eventDate, setEventDate] = useState('2026-05-02T10:00'); // Data/hora do evento
 
   useEffect(() => {
     if (isAuthenticated) fetchSubscriptions();
@@ -84,11 +86,57 @@ function Admin() {
   };
 
   const confirmarPagamento = async (sub) => {
-    if (!window.confirm(`Confirmar pagamento de ${sub.nome} e enviar notificação de acesso?`)) return;
-    const { error } = await supabase.from('subscriptions').update({ status: 'pago' }).eq('id', sub.id);
-    if (error) { alert('Erro ao atualizar: ' + error.message); return; }
-    await dispararNotificacao({ ...sub, status: 'pago' }, 'confirmation');
-    fetchSubscriptions();
+    if (!eventLink.trim()) {
+      alert('⚠️ Configure o link do evento em CONFIGURAÇÕES antes de confirmar pagamento!');
+      setActiveTab('settings');
+      return;
+    }
+    
+    if (!window.confirm(`Confirmar pagamento de ${sub.nome} e enviar notificação com detalhes do evento?`)) return;
+    
+    try {
+      // 1. Atualizar status e event_link no Supabase
+      const { error } = await supabase
+        .from('subscriptions')
+        .update({ 
+          status: 'pago',
+          event_link: eventLink,
+          event_date: new Date(eventDate).toISOString()
+        })
+        .eq('id', sub.id);
+      
+      if (error) { 
+        alert('Erro ao atualizar: ' + error.message); 
+        return; 
+      }
+
+      // 2. Enviar notificação de pagamento confirmado
+      try {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'pagamento_confirmado',
+            nome: sub.nome,
+            email: sub.email,
+            celular: sub.celular,
+            event_link: eventLink,
+            event_date: new Date(eventDate).toLocaleString('pt-BR')
+          })
+        });
+        addLog(sub.nome, '✅ Pagamento Confirmado', true);
+        alert('✅ Pagamento confirmado e notificação enviada com sucesso!');
+      } catch (e) {
+        console.error('Erro ao enviar notificação:', e);
+        addLog(sub.nome, '✅ Pagamento Confirmado', false);
+        alert('⚠️ Pagamento confirmado, mas erro ao enviar notificação.');
+      }
+
+      fetchSubscriptions();
+    } catch (e) {
+      addLog(sub.nome, '❌ Erro ao confirmar', false);
+      alert('Erro: ' + e.message);
+    }
   };
 
   const handleLogin = (e) => {
@@ -143,8 +191,8 @@ function Admin() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-          {[['leads', '📋 Leads & Inscritos'], ['templates', '✏️ Templates de Mensagens'], ['logs', '📜 Log de Disparos']].map(([tab, label]) => (
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {[['leads', '📋 Leads & Inscritos'], ['settings', '⚙️ Configurações'], ['templates', '✏️ Templates'], ['logs', '📜 Logs']].map(([tab, label]) => (
             <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.9rem', background: activeTab === tab ? '#E5C07B' : '#2a1f5a', color: activeTab === tab ? '#000' : '#fff' }}>{label}</button>
           ))}
         </div>
@@ -155,17 +203,17 @@ function Admin() {
             <table style={{ width: '100%', borderCollapse: 'collapse', background: '#12102e', borderRadius: '12px', overflow: 'hidden' }}>
               <thead>
                 <tr style={{ background: '#1a1840' }}>
-                  {['ID', 'Nome', 'E-mail', 'Celular', 'Método', 'Status', 'Ações'].map(h => (
+                  {['ID', 'Nome', 'E-mail', 'Celular', 'Método', 'Status', 'Link Evento', 'Ações'].map(h => (
                     <th key={h} style={{ padding: '14px 12px', textAlign: 'left', color: '#E5C07B', fontWeight: '700', fontSize: '0.8rem', letterSpacing: '0.5px', borderBottom: '1px solid #2a1f5a' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {isLoading && <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#9080c0' }}>Carregando...</td></tr>}
-                {!isLoading && subscriptions.length === 0 && <tr><td colSpan="7" style={{ textAlign: 'center', padding: '40px', color: '#9080c0' }}>Nenhum registro encontrado.</td></tr>}
+                {isLoading && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#9080c0' }}>Carregando...</td></tr>}
+                {!isLoading && subscriptions.length === 0 && <tr><td colSpan="8" style={{ textAlign: 'center', padding: '40px', color: '#9080c0' }}>Nenhum registro encontrado.</td></tr>}
                 {subscriptions.map((sub, i) => (
                   <tr key={sub.id} style={{ borderBottom: '1px solid #1a1840', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                    <td style={{ padding: '12px', color: '#9080c0', fontSize: '0.85rem' }}>{sub.id}</td>
+                    <td style={{ padding: '12px', color: '#9080c0', fontSize: '0.85rem' }}>{sub.id?.substring(0, 8)}...</td>
                     <td style={{ padding: '12px', fontWeight: '600' }}>{sub.nome}</td>
                     <td style={{ padding: '12px', color: '#c0b0e8', fontSize: '0.9rem' }}>{sub.email}</td>
                     <td style={{ padding: '12px', color: '#c0b0e8', fontSize: '0.9rem' }}>{sub.celular}</td>
@@ -177,6 +225,9 @@ function Admin() {
                     <td style={{ padding: '12px' }}>
                       <span style={{ color: statusColor(sub.status), fontWeight: 'bold', fontSize: '0.8rem', textTransform: 'uppercase' }}>{sub.status}</span>
                     </td>
+                    <td style={{ padding: '12px', fontSize: '0.8rem', color: sub.event_link ? '#50e890' : '#9080c0' }}>
+                      {sub.event_link ? '✅ Configurado' : '❌ Vazio'}
+                    </td>
                     <td style={{ padding: '12px' }}>
                       <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {sub.status === 'aguardando' && (
@@ -187,8 +238,8 @@ function Admin() {
                         )}
                         {(sub.status === 'pago' || sub.status === 'aguardando') && (
                           <>
-                            <button onClick={() => dispararNotificacao(sub, 'reminder_1d')} style={{ background: '#4080ff', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>📅 Lembrete Dia</button>
-                            <button onClick={() => dispararNotificacao(sub, 'reminder_1h')} style={{ background: '#996A22', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>🚨 Lembrete Hora</button>
+                            <button onClick={() => dispararNotificacao(sub, 'reminder_1d')} style={{ background: '#4080ff', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>📅 Dia</button>
+                            <button onClick={() => dispararNotificacao(sub, 'reminder_1h')} style={{ background: '#996A22', color: '#fff', border: 'none', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold', whiteSpace: 'nowrap' }}>🚨 Hora</button>
                           </>
                         )}
                       </div>
@@ -197,6 +248,82 @@ function Admin() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* TAB: Configurações */}
+        {activeTab === 'settings' && (
+          <div style={{ background: '#12102e', borderRadius: '12px', padding: '30px', maxWidth: '600px' }}>
+            <h2 style={{ color: '#E5C07B', marginBottom: '24px' }}>⚙️ Configurações do Evento</h2>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: '#E5C07B', fontWeight: 'bold', marginBottom: '8px' }}>
+                🔗 Link do Evento (Zoom/Meet)
+              </label>
+              <input
+                type="url"
+                placeholder="https://zoom.us/j/123456789"
+                value={eventLink}
+                onChange={(e) => setEventLink(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '2px solid #2a1f5a',
+                  background: '#07071a',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <p style={{ color: '#9080c0', fontSize: '0.85rem', marginTop: '6px' }}>
+                Este link será enviado nos e-mails e mensagens de WhatsApp quando confirmar o pagamento.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ display: 'block', color: '#E5C07B', fontWeight: 'bold', marginBottom: '8px' }}>
+                📅 Data e Hora do Evento
+              </label>
+              <input
+                type="datetime-local"
+                value={eventDate}
+                onChange={(e) => setEventDate(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  border: '2px solid #2a1f5a',
+                  background: '#07071a',
+                  color: '#fff',
+                  fontSize: '0.95rem',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <p style={{ color: '#9080c0', fontSize: '0.85rem', marginTop: '6px' }}>
+                Padrão: 02/05/2026 às 10h00
+              </p>
+            </div>
+
+            <div style={{ background: '#1a1840', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #4080ff' }}>
+              <p style={{ color: '#4080ff', fontWeight: 'bold', margin: '0 0 8px' }}>ℹ️ Como usar:</p>
+              <ol style={{ color: '#c0b0e8', fontSize: '0.9rem', margin: '0', paddingLeft: '20px' }}>
+                <li>Cole o link do seu Zoom/Meet acima</li>
+                <li>Confirme a data/hora do evento</li>
+                <li>Quando o cliente pagar, clique "Aprovar Pgto"</li>
+                <li>O link será enviado automaticamente no e-mail e WhatsApp!</li>
+              </ol>
+            </div>
+
+            <div style={{ marginTop: '24px', padding: '16px', background: '#12102e', border: '1px solid #50e890', borderRadius: '8px' }}>
+              <p style={{ color: '#50e890', fontWeight: 'bold', margin: '0 0 8px' }}>✅ Status Atual:</p>
+              <p style={{ color: '#c0b0e8', margin: '4px 0', fontSize: '0.9rem' }}>
+                🔗 Link: {eventLink ? '✅ Configurado' : '❌ Falta configurar'}
+              </p>
+              <p style={{ color: '#c0b0e8', margin: '4px 0', fontSize: '0.9rem' }}>
+                📅 Data: {new Date(eventDate).toLocaleString('pt-BR')}
+              </p>
+            </div>
           </div>
         )}
 

@@ -70,7 +70,25 @@ function App() {
           .select();
         
         if (data && data.length > 0) {
-          setLeadId(data[0].id);
+          const newLeadId = data[0].id;
+          setLeadId(newLeadId);
+
+          // Enviar notificação de inscrição pendente (aguardando pagamento)
+          try {
+            await fetch('/api/notify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                type: 'inscrição_pendente',
+                nome: nome,
+                email: email,
+                celular: celular
+              })
+            });
+            console.log('✅ Notificação de inscrição enviada para', email);
+          } catch (notifyError) {
+            console.error('Erro ao enviar notificação de inscrição:', notifyError);
+          }
         } else if (error) {
           // Se deu erro de duplicidade, tenta buscar o ID do e-mail existente
           const { data: existingData } = await supabase.from('subscriptions').select('id').eq('email', email).limit(1);
@@ -136,19 +154,31 @@ function App() {
 
       // Enviar notificações (E-mail e WhatsApp) via Vercel Serverless Function
       try {
+        // Determinar o tipo de notificação baseado no status do pagamento
+        let notificationType = 'confirmation';
+        
+        if (paymentMethod === 'card' || payload.status === 'pago') {
+          // Se pagou com cartão, é confirmação imediata
+          notificationType = 'pagamento_confirmado';
+        } else if (paymentMethod === 'pix' || paymentMethod === 'boleto') {
+          // Se escolheu pix/boleto, ainda está aguardando
+          notificationType = 'inscrição_pendente';
+        }
+
         await fetch('/api/notify', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            type: 'confirmation',
+            type: notificationType,
             nome: formData.nome,
             email: formData.email,
             celular: formData.celular,
             method: paymentMethod
           })
         });
+        console.log(`✅ Notificação ${notificationType} enviada para ${formData.email}`);
       } catch (notifyError) {
         console.error('Erro ao chamar API de notificação:', notifyError);
         // Não bloqueia o sucesso da inscrição se a notificação falhar
