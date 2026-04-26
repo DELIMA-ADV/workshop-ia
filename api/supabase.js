@@ -17,20 +17,36 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Validar variáveis de ambiente
-    const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    // ⚠️ DEBUG: Mostrar variáveis de ambiente
+    console.log('🔍 [Proxy Supabase] Verificando variáveis de ambiente:');
+    console.log('   - VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? '✅ Existe' : '❌ AUSENTE');
+    console.log('   - VITE_SUPABASE_ANON_KEY:', process.env.VITE_SUPABASE_ANON_KEY ? '✅ Existe' : '❌ AUSENTE');
 
-    console.log('🔍 Proxy Supabase - Verificando variáveis de ambiente:');
-    console.log('  - VITE_SUPABASE_URL:', supabaseUrl ? '✅ Carregada' : '❌ NÃO CARREGADA');
-    console.log('  - VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Carregada' : '❌ NÃO CARREGADA');
+    // Validar variáveis de ambiente
+    const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim();
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
 
     if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('❌ ERRO CRÍTICO: Variáveis de ambiente não configuradas!');
+      console.error('   Acesse: Vercel Dashboard → Seu Projeto → Settings → Environment Variables');
+      console.error('   E configure:');
+      console.error('     - VITE_SUPABASE_URL = https://nccsdktkkortxrthxxzrh.supabase.co');
+      console.error('     - VITE_SUPABASE_ANON_KEY = sua_chave_aqui');
+      
       return res.status(500).json({
-        error: 'Variáveis de ambiente do Supabase não configuradas no Vercel',
-        details: 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Vercel → Settings → Environment Variables',
-        url: supabaseUrl || undefined,
-        keyExists: !!supabaseAnonKey
+        error: '❌ CONFIGURAÇÃO FALTANTE: Variáveis de ambiente não definidas no Vercel',
+        help: 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings → Environment Variables',
+        urlSet: !!supabaseUrl,
+        keySet: !!supabaseAnonKey,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Validar formato da URL
+    if (!supabaseUrl.startsWith('https://')) {
+      return res.status(500).json({
+        error: 'URL do Supabase inválida: deve começar com https://',
+        provided: supabaseUrl
       });
     }
 
@@ -39,24 +55,24 @@ export default async function handler(req, res) {
 
     const { action, table, data, filters, select = '*' } = req.body;
 
-    console.log(`🔹 [${new Date().toISOString()}] Action: ${action} | Table: ${table} | Select: ${select}`);
+    console.log(`📍 [${new Date().toISOString()}] Action: ${action} | Table: ${table}`);
 
     let result;
 
     // ========== INSERT ==========
     if (action === 'insert') {
-      console.log('📝 INSERT com dados:', JSON.stringify(data).substring(0, 100));
+      console.log('📝 INSERT - Dados:', Object.keys(data || {}).join(', '));
       const { data: insertData, error } = await supabase
         .from(table)
         .insert([data])
         .select(select);
 
       if (error) {
-        console.error('❌ Erro INSERT:', error);
+        console.error('❌ INSERT Error:', error);
         throw error;
       }
       result = insertData;
-      console.log('✅ INSERT sucesso:', insertData?.length || 0, 'registros');
+      console.log('✅ INSERT OK:', insertData?.length || 0, 'registros');
     }
 
     // ========== SELECT ==========
@@ -65,7 +81,7 @@ export default async function handler(req, res) {
 
       // Aplicar filtros
       if (filters && Object.keys(filters).length > 0) {
-        console.log('🔍 Filtros aplicados:', JSON.stringify(filters));
+        console.log('🔍 Filtros:', JSON.stringify(filters));
         for (const [column, value] of Object.entries(filters)) {
           query = query.eq(column, value);
         }
@@ -73,16 +89,16 @@ export default async function handler(req, res) {
 
       const { data: selectData, error } = await query;
       if (error) {
-        console.error('❌ Erro SELECT:', error);
+        console.error('❌ SELECT Error:', error);
         throw error;
       }
       result = selectData;
-      console.log('✅ SELECT sucesso:', selectData?.length || 0, 'registros');
+      console.log('✅ SELECT OK:', selectData?.length || 0, 'registros');
     }
 
     // ========== UPDATE ==========
     else if (action === 'update') {
-      console.log('🔄 UPDATE com dados:', JSON.stringify(data).substring(0, 100));
+      console.log('🔄 UPDATE - Dados:', Object.keys(data || {}).join(', '));
       if (!filters || Object.keys(filters).length === 0) {
         throw new Error('UPDATE requer filtros (ex: WHERE id = ...)');
       }
@@ -96,11 +112,11 @@ export default async function handler(req, res) {
 
       const { data: updateData, error } = await query.select(select);
       if (error) {
-        console.error('❌ Erro UPDATE:', error);
+        console.error('❌ UPDATE Error:', error);
         throw error;
       }
       result = updateData;
-      console.log('✅ UPDATE sucesso:', updateData?.length || 0, 'registros');
+      console.log('✅ UPDATE OK:', updateData?.length || 0, 'registros');
     }
 
     // ========== DELETE ==========
@@ -118,11 +134,11 @@ export default async function handler(req, res) {
 
       const { error } = await query.delete();
       if (error) {
-        console.error('❌ Erro DELETE:', error);
+        console.error('❌ DELETE Error:', error);
         throw error;
       }
       result = { success: true };
-      console.log('✅ DELETE sucesso');
+      console.log('✅ DELETE OK');
     }
 
     else {
@@ -135,11 +151,12 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('❌ Erro geral no proxy Supabase:', error);
+    console.error('❌ Erro geral no proxy:', error.message);
     return res.status(500).json({
       error: error.message || 'Erro desconhecido',
       details: error.details || error.toString(),
-      hint: error.hint || ''
+      hint: error.hint || '',
+      timestamp: new Date().toISOString()
     });
   }
 }

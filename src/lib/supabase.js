@@ -1,112 +1,106 @@
 // Cliente Supabase com Proxy via API Serverless
 // As requisições passam pelo backend (/api/supabase) para evitar CORS e problemas de DNS
 
+const API_BASE = '/api/supabase';
+
 class SupabaseProxy {
   from(table) {
-    return new TableProxy(table);
+    return new QueryBuilder(table);
   }
 }
 
-class TableProxy {
+class QueryBuilder {
   constructor(table) {
     this.table = table;
-    this.selectColumns = '*';
-    this.filtersList = []; // Array de filtros: [{column, value, operator}]
+    this._selectColumns = '*';
+    this._filters = {};
+    this._action = null;
+    this._data = null;
   }
 
   select(columns = '*') {
-    const newInstance = new TableProxy(this.table);
-    newInstance.selectColumns = columns;
-    newInstance.filtersList = [...this.filtersList];
-    return newInstance;
+    this._selectColumns = columns;
+    return this;
   }
 
   eq(column, value) {
-    this.filtersList.push({ column, value, operator: 'eq' });
+    this._filters[column] = value;
     return this;
   }
 
   limit(count) {
-    // Implementar limit no futuro se necessário
     return this;
   }
 
   insert(records) {
     const recordToInsert = Array.isArray(records) ? records[0] : records;
-
-    return callProxy('insert', this.table, recordToInsert, null, this.selectColumns);
+    this._action = 'insert';
+    this._data = recordToInsert;
+    // Retorna um objeto que permite chainar .select()
+    return new SelectableResult(this);
   }
 
   update(data) {
-    // Converter filtersList em objeto de filtros
-    const filters = {};
-    this.filtersList.forEach(({ column, value }) => {
-      filters[column] = value;
-    });
-
-    return callProxy('update', this.table, data, filters, this.selectColumns);
+    this._action = 'update';
+    this._data = data;
+    // Retorna uma Promise com {data, error}
+    return this._execute();
   }
 
   delete() {
-    const filters = {};
-    this.filtersList.forEach(({ column, value }) => {
-      filters[column] = value;
-    });
-
-    return callProxy('delete', this.table, null, filters, '*');
+    this._action = 'delete';
+    return this._execute();
   }
 
-  // Quando usado com .then() direto (como em select)
-  then(onFulfilled, onRejected) {
-    const filters = {};
-    this.filtersList.forEach(({ column, value }) => {
-      filters[column] = value;
-    });
+  async _execute() {
+    try {
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: this._action,
+          table: this.table,
+          data: this._data,
+          filters: this._filters,
+          select: this._selectColumns
+        })
+      });
 
-    return callProxy('select', this.table, null, filters, this.selectColumns)
-      .then(onFulfilled, onRejected);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error(`❌ Erro ${this._action} ${this.table}:`, result.error);
+        return { data: null, error: { message: result.error, details: result.details } };
+      }
+
+      return { data: result.data, error: null };
+    } catch (error) {
+      console.error(`❌ Erro na chamada proxy:`, error);
+      return { data: null, error: { message: error.message } };
+    }
+  }
+
+  // Quando usado com await (select)
+  async then(onFulfilled, onRejected) {
+    this._action = 'select';
+    try {
+      const result = await this._execute();
+      return onFulfilled ? onFulfilled(result) : result;
+    } catch (error) {
+      return onRejected ? onRejected(error) : { data: null, error };
+    }
   }
 }
 
-async function callProxy(action, table, data = null, filters = null, select = '*') {
-  try {
-    const response = await fetch('/api/supabase', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        action,
-        table,
-        data,
-        filters,
-        select
-      })
-    });
+class SelectableResult {
+  constructor(queryBuilder) {
+    this.queryBuilder = queryBuilder;
+  }
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      console.error(`❌ Erro ${action} ${table}:`, result.error);
-      return { 
-        data: null, 
-        error: { 
-          message: result.error, 
-          details: result.details || '' 
-        } 
-      };
-    }
-
-    return { data: result.data, error: null };
-  } catch (error) {
-    console.error(`❌ Erro na chamada proxy (${action}):`, error);
-    return { 
-      data: null, 
-      error: { 
-        message: error.message, 
-        details: error.toString() 
-      } 
-    };
+  select(columns = '*') {
+    this.queryBuilder.select(columns);
+    // Retorna uma Promise com {data, error}
+    return this.queryBuilder._execute();
   }
 }
 
