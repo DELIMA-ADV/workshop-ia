@@ -261,7 +261,7 @@ function App() {
         </div>
 
         <div className="speaker-card">
-          <h3>ANA MARCELY VIDAL DE LIMA</h3>
+          <h3>ANA LIMA</h3>
           <h4>Advogada, Fundadora e Pesquisadora em Direito e Tecnologia</h4>
           <p>Ana Marcely é advogada e fundadora do escritório <strong>De Lima Advogados</strong>, com uma trajetória que combina a prática jurídica estratégica com o rigor acadêmico. Atualmente, é mestranda na UFPE, onde pesquisa os impactos da tecnologia e da "Revolução Informacional" no Direito do Trabalho. Sua atuação é focada nas áreas trabalhista empresarial e previdenciária, unindo inovação e conformidade legal para o setor corporativo.</p>
           <ul>
