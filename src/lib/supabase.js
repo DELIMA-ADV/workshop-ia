@@ -1,17 +1,113 @@
-import { createClient } from '@supabase/supabase-js'
+// Cliente Supabase com Proxy via API Serverless
+// As requisições passam pelo backend (/api/supabase) para evitar CORS e problemas de DNS
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-// Validação em tempo de build para avisar se as variáveis estão faltando
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ ERRO: Variáveis de ambiente do Supabase não configuradas!')
-  console.error('Adicione ao arquivo .env (ou às variáveis do Vercel):')
-  console.error('  VITE_SUPABASE_URL=https://seu-projeto.supabase.co')
-  console.error('  VITE_SUPABASE_ANON_KEY=sua_chave_anon_aqui')
+class SupabaseProxy {
+  from(table) {
+    return new TableProxy(table);
+  }
 }
 
-export const supabase = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder'
-)
+class TableProxy {
+  constructor(table) {
+    this.table = table;
+    this.selectColumns = '*';
+    this.filtersList = []; // Array de filtros: [{column, value, operator}]
+  }
+
+  select(columns = '*') {
+    const newInstance = new TableProxy(this.table);
+    newInstance.selectColumns = columns;
+    newInstance.filtersList = [...this.filtersList];
+    return newInstance;
+  }
+
+  eq(column, value) {
+    this.filtersList.push({ column, value, operator: 'eq' });
+    return this;
+  }
+
+  limit(count) {
+    // Implementar limit no futuro se necessário
+    return this;
+  }
+
+  insert(records) {
+    const recordToInsert = Array.isArray(records) ? records[0] : records;
+
+    return callProxy('insert', this.table, recordToInsert, null, this.selectColumns);
+  }
+
+  update(data) {
+    // Converter filtersList em objeto de filtros
+    const filters = {};
+    this.filtersList.forEach(({ column, value }) => {
+      filters[column] = value;
+    });
+
+    return callProxy('update', this.table, data, filters, this.selectColumns);
+  }
+
+  delete() {
+    const filters = {};
+    this.filtersList.forEach(({ column, value }) => {
+      filters[column] = value;
+    });
+
+    return callProxy('delete', this.table, null, filters, '*');
+  }
+
+  // Quando usado com .then() direto (como em select)
+  then(onFulfilled, onRejected) {
+    const filters = {};
+    this.filtersList.forEach(({ column, value }) => {
+      filters[column] = value;
+    });
+
+    return callProxy('select', this.table, null, filters, this.selectColumns)
+      .then(onFulfilled, onRejected);
+  }
+}
+
+async function callProxy(action, table, data = null, filters = null, select = '*') {
+  try {
+    const response = await fetch('/api/supabase', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action,
+        table,
+        data,
+        filters,
+        select
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error(`❌ Erro ${action} ${table}:`, result.error);
+      return { 
+        data: null, 
+        error: { 
+          message: result.error, 
+          details: result.details || '' 
+        } 
+      };
+    }
+
+    return { data: result.data, error: null };
+  } catch (error) {
+    console.error(`❌ Erro na chamada proxy (${action}):`, error);
+    return { 
+      data: null, 
+      error: { 
+        message: error.message, 
+        details: error.toString() 
+      } 
+    };
+  }
+}
+
+export const supabase = new SupabaseProxy();
