@@ -53,7 +53,7 @@ export default async function handler(req, res) {
     // Criar cliente Supabase
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-    const { action, table, data, filters, select = '*' } = req.body;
+    const { action, table, data, filters, select = '*', order } = req.body;
 
     console.log(`📍 [${new Date().toISOString()}] Action: ${action} | Table: ${table}`);
 
@@ -85,6 +85,11 @@ export default async function handler(req, res) {
         for (const [column, value] of Object.entries(filters)) {
           query = query.eq(column, value);
         }
+      }
+
+      // Aplicar ordenação
+      if (order?.column) {
+        query = query.order(order.column, { ascending: order.ascending ?? true });
       }
 
       const { data: selectData, error } = await query;

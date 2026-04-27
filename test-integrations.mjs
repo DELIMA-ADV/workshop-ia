@@ -57,7 +57,7 @@ async function testSupabase() {
 
   try {
     // Faz uma query simples na tabela de inscrições
-    const url = `${SUPABASE_URL}/rest/v1/inscricoes?select=id&limit=1`;
+    const url = `${SUPABASE_URL}/rest/v1/subscriptions?select=id&limit=1`;
     const res = await fetch(url, {
       headers: {
         apikey: SUPABASE_KEY,

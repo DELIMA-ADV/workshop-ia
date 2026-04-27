@@ -14,6 +14,7 @@ class QueryBuilder {
     this.table = table;
     this._selectColumns = '*';
     this._filters = {};
+    this._order = null;
     this._action = null;
     this._data = null;
   }
@@ -25,6 +26,11 @@ class QueryBuilder {
 
   eq(column, value) {
     this._filters[column] = value;
+    return this;
+  }
+
+  order(column, { ascending = true } = {}) {
+    this._order = { column, ascending };
     return this;
   }
 
@@ -62,7 +68,8 @@ class QueryBuilder {
           table: this.table,
           data: this._data,
           filters: this._filters,
-          select: this._selectColumns
+          select: this._selectColumns,
+          order: this._order
         })
       });
 
