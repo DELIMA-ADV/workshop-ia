@@ -1,43 +1,44 @@
 // Endpoint de teste para verificar se as variáveis estão configuradas
 export default async function handler(req, res) {
-  const envVars = {
-    // Frontend / Supabase proxy
-    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL ? '✅ EXISTE' : '❌ AUSENTE',
-    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY ? '✅ EXISTE' : '❌ AUSENTE',
-    // E-mail
-    RESEND_API_KEY: process.env.RESEND_API_KEY ? '✅ EXISTE' : '❌ AUSENTE',
-    RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL ? '✅ EXISTE' : '⚠️ AUSENTE (usará onboarding@resend.dev)',
-    // WhatsApp
-    EVOLUTION_API_URL: process.env.EVOLUTION_API_URL ? '✅ EXISTE' : '⚠️ AUSENTE (WhatsApp desabilitado)',
-    EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY ? '✅ EXISTE' : '⚠️ AUSENTE (WhatsApp desabilitado)',
-    // Runtime
-    NODE_ENV: process.env.NODE_ENV || 'não definido',
-    VERCEL_ENV: process.env.VERCEL_ENV || 'não definido',
+  // Suporte a nomes com e sem prefixo VITE_
+  const supabaseUrl = process.env.SUPABASE_URL  || process.env.VITE_SUPABASE_URL  || null;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || null;
+  const resendKey   = process.env.RESEND_API_KEY || null;
+  const fromEmail   = process.env.RESEND_FROM_EMAIL || null;
+  const evoUrl      = process.env.EVOLUTION_API_URL || null;
+  const evoKey      = process.env.EVOLUTION_API_KEY || null;
+
+  const CORRECT_URL = 'https://nccsdktkkortxrtxxzrh.supabase.co';
+  const urlOk = supabaseUrl === CORRECT_URL;
+
+  const status = {
+    SUPABASE_URL_efetiva: supabaseUrl  ? `✅ ${supabaseUrl}` : '❌ AUSENTE',
+    SUPABASE_URL_correta: urlOk ? '✅ URL correta' : `❌ ERRADA — esperado: ${CORRECT_URL}`,
+    SUPABASE_ANON_KEY:    supabaseKey  ? `✅ (${supabaseKey.length} chars)` : '❌ AUSENTE',
+    RESEND_API_KEY:       resendKey    ? '✅ EXISTE' : '❌ AUSENTE',
+    RESEND_FROM_EMAIL:    fromEmail    ? `✅ ${fromEmail}` : '⚠️ AUSENTE',
+    EVOLUTION_API_URL:    evoUrl       ? '✅ EXISTE' : '⚠️ AUSENTE',
+    EVOLUTION_API_KEY:    evoKey       ? '✅ EXISTE' : '⚠️ AUSENTE',
+    NODE_ENV:             process.env.NODE_ENV || 'não definido',
+    VERCEL_ENV:           process.env.VERCEL_ENV || 'não definido',
   };
 
-  const details = {
-    supabaseUrl: process.env.VITE_SUPABASE_URL || 'NÃO DEFINIDA',
-    supabaseKeyLength: process.env.VITE_SUPABASE_ANON_KEY?.length || 0,
-    urlValid: process.env.VITE_SUPABASE_URL?.startsWith('https://') ? 'SIM' : 'NÃO/AUSENTE',
-    resendKeyPrefix: process.env.RESEND_API_KEY?.substring(0, 7) || 'NÃO DEFINIDA',
-    fromEmail: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev (padrão de teste)',
-    evolutionUrl: process.env.EVOLUTION_API_URL || 'NÃO DEFINIDA',
-  };
-
-  const criticalMissing = [
-    !process.env.VITE_SUPABASE_URL && 'VITE_SUPABASE_URL',
-    !process.env.VITE_SUPABASE_ANON_KEY && 'VITE_SUPABASE_ANON_KEY',
-    !process.env.RESEND_API_KEY && 'RESEND_API_KEY',
+  const criticalIssues = [
+    (!supabaseUrl) && 'VITE_SUPABASE_URL ausente',
+    (!supabaseKey) && 'VITE_SUPABASE_ANON_KEY ausente',
+    (!resendKey)   && 'RESEND_API_KEY ausente',
+    (supabaseUrl && !urlOk) && `VITE_SUPABASE_URL errada (atual: ${supabaseUrl} | correto: ${CORRECT_URL})`,
   ].filter(Boolean);
 
   res.json({
     timestamp: new Date().toISOString(),
-    message: criticalMissing.length === 0
-      ? '✅ Todas as variáveis críticas estão configuradas'
-      : `❌ ${criticalMissing.length} variável(is) crítica(s) ausente(s)`,
-    critical_missing: criticalMissing,
-    status: envVars,
-    details,
-    help: 'Configure as variáveis em Vercel Dashboard → Settings → Environment Variables'
+    message: criticalIssues.length === 0
+      ? '✅ Todas as variáveis críticas estão corretas'
+      : `❌ ${criticalIssues.length} problema(s) encontrado(s)`,
+    critical_issues: criticalIssues,
+    status,
+    fix: criticalIssues.length > 0
+      ? 'Vercel Dashboard → Settings → Environment Variables → corrija os itens acima → Redeploy'
+      : 'Nenhuma ação necessária',
   });
 }

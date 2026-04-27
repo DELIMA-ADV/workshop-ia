@@ -308,6 +308,75 @@ Te vejo no workshop! 💪`;
     errors.push({ service: 'email', detail: error.message });
   }
 
+  // 1b. Notificação interna para a Ana (apenas nas confirmações com dados do lead)
+  const adminEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.RESEND_FROM_EMAIL;
+  if (adminEmail && (type === 'inscrição_pendente' || type === 'pagamento_confirmado')) {
+    try {
+      const fromEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
+      const statusLabel = type === 'pagamento_confirmado' ? '✅ PAGAMENTO CONFIRMADO' : '⏳ INSCRIÇÃO PENDENTE';
+      const methodLabel = method === 'pix' ? 'PIX' : method === 'card' ? 'Cartão de Crédito' : method === 'boleto' ? 'Boleto' : 'Não informado';
+
+      const adminHtml = `
+        <h2 style="color:#1a0800;">📬 Nova Inscrição — ${statusLabel}</h2>
+        <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+          <tr style="background:#f5f5f5;">
+            <td style="padding:10px;border:1px solid #ddd;font-weight:bold;width:35%;">👤 Nome</td>
+            <td style="padding:10px;border:1px solid #ddd;">${nome}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px;border:1px solid #ddd;font-weight:bold;">✉️ E-mail</td>
+            <td style="padding:10px;border:1px solid #ddd;">${email}</td>
+          </tr>
+          <tr style="background:#f5f5f5;">
+            <td style="padding:10px;border:1px solid #ddd;font-weight:bold;">📱 Celular</td>
+            <td style="padding:10px;border:1px solid #ddd;">${celular || '—'}</td>
+          </tr>
+          <tr>
+            <td style="padding:10px;border:1px solid #ddd;font-weight:bold;">💳 Forma de Pagamento</td>
+            <td style="padding:10px;border:1px solid #ddd;">${methodLabel}</td>
+          </tr>
+          <tr style="background:#f5f5f5;">
+            <td style="padding:10px;border:1px solid #ddd;font-weight:bold;">📅 Data/Hora</td>
+            <td style="padding:10px;border:1px solid #ddd;">${new Date().toLocaleString('pt-BR', { timeZone: 'America/Recife' })}</td>
+          </tr>
+        </table>
+
+        ${(q1 || q2 || q3) ? `
+        <h3 style="color:#3949ab;margin-top:24px;">📋 Respostas do Formulário</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          ${q1 ? `<tr style="background:#f0f4ff;"><td style="padding:10px;border:1px solid #c5cae9;font-weight:bold;">🎯 O que espera aprender</td><td style="padding:10px;border:1px solid #c5cae9;">${q1}</td></tr>` : ''}
+          ${q2 ? `<tr><td style="padding:10px;border:1px solid #c5cae9;font-weight:bold;">😤 Maior dificuldade com IA</td><td style="padding:10px;border:1px solid #c5cae9;">${q2}</td></tr>` : ''}
+          ${q3 ? `<tr style="background:#f0f4ff;"><td style="padding:10px;border:1px solid #c5cae9;font-weight:bold;">🤖 Como usa IA hoje</td><td style="padding:10px;border:1px solid #c5cae9;">${q3}</td></tr>` : ''}
+        </table>` : '<p style="color:#888;">Respostas do formulário não disponíveis nesta notificação.</p>'}
+      `;
+
+      const adminSubject = `[Workshop] ${statusLabel} — ${nome}`;
+
+      const adminResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: `Workshop Claude <${fromEmail}>`,
+          to: [adminEmail],
+          subject: adminSubject,
+          html: adminHtml
+        })
+      });
+
+      if (adminResponse.ok) {
+        console.log(`✅ Notificação admin enviada para ${adminEmail}`);
+      } else {
+        const adminErr = await adminResponse.json();
+        console.warn('⚠️ Falha ao enviar notificação admin:', JSON.stringify(adminErr));
+      }
+    } catch (error) {
+      console.warn('⚠️ Exceção na notificação admin (não crítica):', error.message);
+    }
+  }
+
   // 2. Enviar WhatsApp via Evolution API (somente se celular informado)
   if (celular && process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY) {
     try {

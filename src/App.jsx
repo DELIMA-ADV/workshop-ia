@@ -295,12 +295,12 @@ function App() {
 
         <div className="speaker-card">
           <h3>ANA LIMA</h3>
-          <h4>Advogada, Fundadora e Pesquisadora em Direito e Tecnologia</h4>
+          <h4>Advogada e Mestranda</h4>
           <p>Ana Marcely é advogada e fundadora do escritório <strong>De Lima Advogados</strong>, com uma trajetória que combina a prática jurídica estratégica com o rigor acadêmico. Atualmente, é mestranda na UFPE, onde pesquisa os impactos da tecnologia e da "Revolução Informacional" no Direito do Trabalho. Sua atuação é focada nas áreas trabalhista empresarial e previdenciária, unindo inovação e conformidade legal para o setor corporativo.</p>
           <ul>
             <li><strong>Atuação Profissional:</strong> Especialista em Direito Trabalhista Empresarial, contencioso, consultivo e planejamento previdenciário, com vasta experiência em audiências e atendimento estratégico.</li>
             <li><strong>Inovação:</strong> Entusiasta da inteligência artificial aplicada ao Direito, dedica-se a entender como as novas tecnologias transformam as relações laborais modernas.</li>
-            <li><strong>Formação:</strong> Bacharel em Direito pela UNINASSAU, com especializações em curso nas áreas de Direito do Trabalho e Previdenciário.</li>
+            <li><strong>Formação:</strong> Bacharel em Direito com especializações nas áreas de Direito do Trabalho e Previdenciário, bem como mestranda pela UFPE</li>
           </ul>
         </div>
       </div>

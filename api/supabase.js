@@ -23,18 +23,13 @@ export default async function handler(req, res) {
     console.log('   - VITE_SUPABASE_ANON_KEY:', process.env.VITE_SUPABASE_ANON_KEY ? '✅ Existe' : '❌ AUSENTE');
 
     // Validar variáveis de ambiente
-    const supabaseUrl = process.env.VITE_SUPABASE_URL?.trim();
-    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY?.trim();
+    // Suporte a SUPABASE_URL (sem prefixo VITE_) como fallback para backend
+    const supabaseUrl = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL)?.trim();
+    const supabaseAnonKey = (process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY)?.trim();
 
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error('❌ ERRO CRÍTICO: Variáveis de ambiente não configuradas!');
-      console.error('   Acesse: Vercel Dashboard → Seu Projeto → Settings → Environment Variables');
-      console.error('   E configure:');
-      console.error('     - VITE_SUPABASE_URL = https://nccsdktkkortxrthxxzrh.supabase.co');
-      console.error('     - VITE_SUPABASE_ANON_KEY = sua_chave_aqui');
-      
       return res.status(500).json({
-        error: '❌ CONFIGURAÇÃO FALTANTE: Variáveis de ambiente não definidas no Vercel',
+        error: 'CONFIGURAÇÃO FALTANTE: Variáveis de ambiente não definidas no Vercel',
         help: 'Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Settings → Environment Variables',
         urlSet: !!supabaseUrl,
         keySet: !!supabaseAnonKey,
