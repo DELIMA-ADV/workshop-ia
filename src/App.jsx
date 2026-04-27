@@ -175,7 +175,10 @@ function App() {
             nome: formData.nome,
             email: formData.email,
             celular: formData.celular,
-            method: paymentMethod
+            method: paymentMethod,
+            q1: formData.q1,
+            q2: formData.q2,
+            q3: formData.q3,
           })
         });
         console.log(`✅ Notificação ${notificationType} enviada para ${formData.email}`);

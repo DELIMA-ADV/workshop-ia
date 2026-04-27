@@ -9,7 +9,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Configuração faltando: RESEND_API_KEY não definida' });
   }
 
-  const { nome, email, celular, type = 'confirmation', event_link, event_date } = req.body;
+  const { nome, email, celular, type = 'confirmation', event_link, event_date, method, q1, q2, q3 } = req.body;
 
   // Validar campos obrigatórios
   if (!nome || !email) {
@@ -21,125 +21,217 @@ export default async function handler(req, res) {
   let wppText = '';
 
   if (type === 'inscrição_pendente') {
-    // Enviado logo após se inscrever (Passo 1)
     subject = 'Inscrição Recebida - Workshop Claude Jurídico';
+
+    // Bloco de respostas do formulário (só quando preenchidas)
+    const respostasHTML = (q1 || q2 || q3) ? `
+      <div style="background-color: #f0f4ff; padding: 15px; border-left: 4px solid #5c6bc0; margin: 20px 0; border-radius: 0 6px 6px 0;">
+        <p style="margin: 0 0 10px; font-weight: bold; color: #3949ab;">📋 Suas respostas do formulário</p>
+        ${q1 ? `<p style="margin: 8px 0;"><strong>🎯 O que você espera aprender:</strong><br/><span style="color:#333;">${q1}</span></p>` : ''}
+        ${q2 ? `<p style="margin: 8px 0;"><strong>😤 Sua maior dificuldade com IA:</strong><br/><span style="color:#333;">${q2}</span></p>` : ''}
+        ${q3 ? `<p style="margin: 8px 0;"><strong>🤖 Como você usa IA hoje:</strong><br/><span style="color:#333;">${q3}</span></p>` : ''}
+      </div>` : '';
+
+    // Bloco de pagamento de acordo com o método escolhido
+    let pagamentoHTML = '';
+    let pagamentoWpp = '';
+    if (method === 'pix') {
+      pagamentoHTML = `
+        <div style="background-color: #f8f8f8; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; border-radius: 0 6px 6px 0;">
+          <p style="margin: 0 0 10px;"><strong>⏳ Próximo Passo: Efetuar o PIX</strong></p>
+          <p>Copie a chave abaixo e pague <strong>R$ 39,90</strong> via PIX:</p>
+          <div style="background:#fff; border:1px solid #ddd; padding:10px 16px; border-radius:6px; font-family:monospace; font-size:1.1rem; margin:10px 0; letter-spacing:0.5px;">
+            anamarcelylima28@gmail.com
+          </div>
+          <p style="font-size:0.85rem; color:#666;">Após efetuar o pagamento, sua confirmação chegará em até 24h.</p>
+        </div>`;
+      pagamentoWpp = `💳 *Forma de pagamento escolhida: PIX*
+Chave: anamarcelylima28@gmail.com
+Valor: R$ 39,90
+
+Após o PIX, sua vaga fica garantida! ✅`;
+    } else if (method === 'card' || method === 'boleto') {
+      const label = method === 'card' ? '💳 Cartão de Crédito' : '📄 Boleto Bancário';
+      const obs = method === 'boleto' ? '<p style="font-size:0.85rem;color:#666;">O boleto pode levar até 3 dias úteis para compensar.</p>' : '';
+      pagamentoHTML = `
+        <div style="background-color: #f8f8f8; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; border-radius: 0 6px 6px 0;">
+          <p style="margin: 0 0 10px;"><strong>⏳ Próximo Passo: Finalizar o Pagamento</strong></p>
+          <p>Forma escolhida: <strong>${label}</strong></p>
+          <p style="margin: 12px 0;">
+            <a href="https://www.asaas.com/c/jwj5qw3xyue6ajfb"
+               style="background-color:#f5a623;color:#1a0800;padding:12px 24px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;">
+              👉 CLIQUE AQUI PARA PAGAR — R$ 39,90
+            </a>
+          </p>
+          ${obs}
+        </div>`;
+      pagamentoWpp = `💳 *Forma de pagamento: ${label}*
+Link para pagar: https://www.asaas.com/c/jwj5qw3xyue6ajfb
+Valor: R$ 39,90`;
+    } else {
+      // Enviado na captura inicial (step 1), antes da escolha de pagamento
+      pagamentoHTML = `
+        <div style="background-color: #f8f8f8; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0; border-radius: 0 6px 6px 0;">
+          <p style="margin: 0 0 10px;"><strong>⏳ Próximo Passo: Efetuar Pagamento — R$ 39,90</strong></p>
+          <p>Você pode pagar via:</p>
+          <ul style="margin: 8px 0;">
+            <li><strong>⚡ PIX:</strong> chave <code>anamarcelylima28@gmail.com</code></li>
+            <li><strong>💳 Cartão / 📄 Boleto:</strong> <a href="https://www.asaas.com/c/jwj5qw3xyue6ajfb">clique aqui</a></li>
+          </ul>
+        </div>`;
+      pagamentoWpp = `💳 *Opções de pagamento (R$ 39,90):*
+⚡ PIX → chave: anamarcelylima28@gmail.com
+💳 Cartão / 📄 Boleto → https://www.asaas.com/c/jwj5qw3xyue6ajfb`;
+    }
+
+    const respostasWpp = (q1 || q2 || q3) ? `
+
+📋 *Suas respostas do formulário:*
+${q1 ? `🎯 O que espera aprender: ${q1}` : ''}
+${q2 ? `😤 Maior dificuldade com IA: ${q2}` : ''}
+${q3 ? `🤖 Como usa IA hoje: ${q3}` : ''}` : '';
+
     html = `
       <h2>Olá, ${nome}!</h2>
       <p>Sua inscrição no <strong>Workshop "O CLAUDE COMO ASSISTENTE OPERACIONAL E ESTRATÉGICO"</strong> foi recebida com sucesso!</p>
-      
-      <div style="background-color: #f8f8f8; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
-        <p><strong>⏳ Próximo Passo: Efetuar Pagamento</strong></p>
-        <p>Estamos aguardando a confirmação do seu pagamento de <strong>R$ 39,90</strong>.</p>
-        <p>Após o pagamento ser processado, enviaremos:</p>
-        <ul style="margin: 10px 0;">
-          <li>✅ Confirmação de inscrição</li>
-          <li>📅 Detalhes do evento (data, hora, link)</li>
-          <li>🔗 Link de acesso ao Workshop</li>
-        </ul>
-      </div>
-      
-      <p><strong>📅 Data:</strong> 02 de Maio - Sábado, 10h às 12h</p>
-      <p><strong>📍 Formato:</strong> Videoconferência (Zoom/Meet)</p>
-      <p><strong>💰 Valor:</strong> R$ 39,90</p>
-      
+
+      <h3 style="margin-top: 20px;">📋 Dados do Workshop</h3>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr style="background:#f5f5f5;">
+          <td style="padding:8px;border:1px solid #ddd;"><strong>📅 Data:</strong></td>
+          <td style="padding:8px;border:1px solid #ddd;">02 de Maio de 2026 — Sábado</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #ddd;"><strong>🕙 Horário:</strong></td>
+          <td style="padding:8px;border:1px solid #ddd;">10h00 às 12h00 (Horário de Brasília)</td>
+        </tr>
+        <tr style="background:#f5f5f5;">
+          <td style="padding:8px;border:1px solid #ddd;"><strong>📍 Formato:</strong></td>
+          <td style="padding:8px;border:1px solid #ddd;">Videoconferência ao vivo (Zoom/Meet)</td>
+        </tr>
+        <tr>
+          <td style="padding:8px;border:1px solid #ddd;"><strong>💰 Valor:</strong></td>
+          <td style="padding:8px;border:1px solid #ddd;">R$ 39,90</td>
+        </tr>
+      </table>
+
+      ${pagamentoHTML}
+      ${respostasHTML}
+
       <p style="margin-top: 20px; color: #666;">Qualquer dúvida, estamos à disposição!</p>
       <p>Atenciosamente,<br/><strong>Equipe Ana Lima</strong></p>
     `;
-    wppText = `Olá ${nome}! 👋 Recebemos sua inscrição para o Workshop Claude Jurídico! 
 
-⏳ Agora é só efetuar o pagamento de R$ 39,90 que você está dentro!
+    wppText = `Olá ${nome}! 👋 Recebemos sua inscrição para o Workshop Claude Jurídico!
 
-Após confirmar o pagamento, enviaremos:
-✅ Confirmação de inscrição
-📅 Detalhes completos do evento
-🔗 Link de acesso
+📅 02 de Maio — Sábado, 10h às 12h
+📍 Videoconferência ao vivo
+
+${pagamentoWpp}${respostasWpp}
 
 Se tiver qualquer dúvida, é só chamar! 😊`;
 
   } else if (type === 'pagamento_confirmado') {
-    // Enviado após pagamento confirmado
     subject = '✅ Pagamento Confirmado - Workshop Claude Jurídico';
+
+    // Respostas do formulário (quando disponíveis)
+    const respostasHTML = (q1 || q2 || q3) ? `
+      <div style="background-color:#f0f4ff;padding:15px;border-left:4px solid #5c6bc0;margin:20px 0;border-radius:0 6px 6px 0;">
+        <p style="margin:0 0 10px;font-weight:bold;color:#3949ab;">📋 Suas respostas do formulário</p>
+        ${q1 ? `<p style="margin:8px 0;"><strong>🎯 O que você espera aprender:</strong><br/><span style="color:#333;">${q1}</span></p>` : ''}
+        ${q2 ? `<p style="margin:8px 0;"><strong>😤 Sua maior dificuldade com IA:</strong><br/><span style="color:#333;">${q2}</span></p>` : ''}
+        ${q3 ? `<p style="margin:8px 0;"><strong>🤖 Como você usa IA hoje:</strong><br/><span style="color:#333;">${q3}</span></p>` : ''}
+      </div>` : '';
+
+    const respostasWpp = (q1 || q2 || q3) ? `
+
+📋 *Suas respostas do formulário:*
+${q1 ? `🎯 O que espera aprender: ${q1}` : ''}
+${q2 ? `😤 Maior dificuldade com IA: ${q2}` : ''}
+${q3 ? `🤖 Como usa IA hoje: ${q3}` : ''}` : '';
+
     const linkHTML = event_link ? `
-      <div style="background-color: #e3f2fd; padding: 15px; border-left: 4px solid #2196f3; margin: 20px 0;">
-        <p><strong style="color: #1565c0;">🔗 Link de Acesso do Evento:</strong></p>
-        <p style="margin: 10px 0;">
-          <a href="${event_link}" style="background-color: #2196f3; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">
+      <div style="background-color:#e3f2fd;padding:15px;border-left:4px solid #2196f3;margin:20px 0;border-radius:0 6px 6px 0;">
+        <p><strong style="color:#1565c0;">🔗 Link de Acesso do Evento:</strong></p>
+        <p style="margin:10px 0;">
+          <a href="${event_link}" style="background-color:#2196f3;color:white;padding:12px 24px;text-decoration:none;border-radius:5px;display:inline-block;font-weight:bold;">
             👉 CLIQUE AQUI PARA ENTRAR NO EVENTO
           </a>
         </p>
-        <p style="color: #1565c0; margin-top: 10px; font-size: 0.9rem;">
-          ℹ️ Acesse o link acima para participar do workshop. Recomendamos entrar alguns minutos antes do horário de início.
+        <p style="color:#1565c0;margin-top:10px;font-size:0.9rem;">
+          ℹ️ Recomendamos entrar alguns minutos antes do horário de início.
         </p>
       </div>
     ` : `
-      <div style="background-color: #fff3e0; padding: 15px; border-left: 4px solid #ff9800; margin: 20px 0;">
+      <div style="background-color:#fff3e0;padding:15px;border-left:4px solid #ff9800;margin:20px 0;border-radius:0 6px 6px 0;">
         <p><strong>🔔 Link de Acesso:</strong></p>
         <p>O link do Zoom/Meet será enviado <strong>1 hora antes do evento</strong> por e-mail e WhatsApp.</p>
-        <p style="margin-top: 10px; color: #d84315;">⚠️ Não perca! Verifique seu e-mail e WhatsApp na data do workshop.</p>
+        <p style="margin-top:10px;color:#d84315;">⚠️ Não perca! Verifique seu e-mail e WhatsApp na data do workshop.</p>
       </div>
     `;
 
     html = `
       <h2>Olá, ${nome}! 🎉</h2>
       <p>Sua inscrição no <strong>Workshop "O CLAUDE COMO ASSISTENTE OPERACIONAL E ESTRATÉGICO"</strong> foi confirmada com sucesso!</p>
-      
-      <div style="background-color: #e8f5e9; padding: 15px; border-left: 4px solid #4caf50; margin: 20px 0;">
-        <p><strong style="color: #2e7d32;">✅ Pagamento Recebido</strong></p>
+
+      <div style="background-color:#e8f5e9;padding:15px;border-left:4px solid #4caf50;margin:20px 0;border-radius:0 6px 6px 0;">
+        <p><strong style="color:#2e7d32;">✅ Pagamento Recebido</strong></p>
         <p>Sua inscrição está garantida! Nos vemos no dia 02 de Maio.</p>
       </div>
-      
-      <h3 style="margin-top: 20px;">📋 Informações do Workshop</h3>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr style="background-color: #f5f5f5;">
-          <td style="padding: 10px; border: 1px solid #ddd;"><strong>📅 Data:</strong></td>
-          <td style="padding: 10px; border: 1px solid #ddd;">${event_date || '02 de Maio de 2026 - Sábado'}</td>
+
+      <h3 style="margin-top:20px;">📋 Informações do Workshop</h3>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr style="background-color:#f5f5f5;">
+          <td style="padding:10px;border:1px solid #ddd;"><strong>📅 Data:</strong></td>
+          <td style="padding:10px;border:1px solid #ddd;">${event_date || '02 de Maio de 2026 — Sábado'}</td>
         </tr>
         <tr>
-          <td style="padding: 10px; border: 1px solid #ddd;"><strong>🕙 Horário:</strong></td>
-          <td style="padding: 10px; border: 1px solid #ddd;">10h00 às 12h00 (Horário de Brasília)</td>
+          <td style="padding:10px;border:1px solid #ddd;"><strong>🕙 Horário:</strong></td>
+          <td style="padding:10px;border:1px solid #ddd;">10h00 às 12h00 (Horário de Brasília)</td>
         </tr>
-        <tr style="background-color: #f5f5f5;">
-          <td style="padding: 10px; border: 1px solid #ddd;"><strong>📍 Formato:</strong></td>
-          <td style="padding: 10px; border: 1px solid #ddd;">Videoconferência ao vivo</td>
+        <tr style="background-color:#f5f5f5;">
+          <td style="padding:10px;border:1px solid #ddd;"><strong>📍 Formato:</strong></td>
+          <td style="padding:10px;border:1px solid #ddd;">Videoconferência ao vivo</td>
         </tr>
         <tr>
-          <td style="padding: 10px; border: 1px solid #ddd;"><strong>👨‍🏫 Instrutor:</strong></td>
-          <td style="padding: 10px; border: 1px solid #ddd;">Ana Lima - Especialista em Inteligência Jurídica</td>
+          <td style="padding:10px;border:1px solid #ddd;"><strong>👩‍🏫 Instrutores:</strong></td>
+          <td style="padding:10px;border:1px solid #ddd;">Ana Lima &amp; Victor Medeiros</td>
         </tr>
       </table>
-      
+
       ${linkHTML}
-      
+      ${respostasHTML}
+
       <h3>📚 O que você vai aprender:</h3>
       <ul>
         <li>Como usar o Claude como assistente operacional</li>
         <li>Estratégias de IA para jurídicos</li>
         <li>Casos práticos e exemplos reais</li>
-        <li>Dicas exclusivas da Ana Lima</li>
+        <li>Dicas exclusivas da Ana Lima e Victor Medeiros</li>
       </ul>
-      
-      <p style="margin-top: 20px; color: #666;">Qualquer dúvida, estamos à disposição!</p>
+
+      <p style="margin-top:20px;color:#666;">Qualquer dúvida, estamos à disposição!</p>
       <p>Atenciosamente,<br/><strong>Equipe Ana Lima</strong></p>
     `;
-    
-    wppText = event_link 
+
+    wppText = event_link
       ? `🎉 ${nome}, ótimo! Sua inscrição foi confirmada com sucesso!
 
 ✅ Pagamento recebido
-📅 02 de Maio - Sábado, 10h às 12h
+📅 02 de Maio — Sábado, 10h às 12h
 📍 Videoconferência ao vivo
 
 🔗 Link de Acesso:
-${event_link}
+${event_link}${respostasWpp}
 
 Te vejo no workshop! 💪`
       : `🎉 ${nome}, ótimo! Sua inscrição foi confirmada com sucesso!
 
 ✅ Pagamento recebido
-📅 02 de Maio - Sábado, 10h às 12h
+📅 02 de Maio — Sábado, 10h às 12h
 📍 Videoconferência ao vivo
 
-🔔 O link de acesso será enviado 1 hora antes do evento por aqui.
+🔔 O link de acesso será enviado 1 hora antes do evento por aqui.${respostasWpp}
 
 Te vejo no workshop! 💪`;
 
