@@ -220,7 +220,7 @@ function App() {
         <div className="hero-highlights">
           <div className="highlight-item">
             <span className="icon">📅</span>
-            <div><strong>02 de Maio</strong><br />Sábado, 10h às 12h</div>
+            <div><strong>04 de Maio</strong><br />Segunda-feira, 20h às 22h</div>
           </div>
           <div className="highlight-item">
             <span className="icon">💻</span>
@@ -364,7 +364,7 @@ function App() {
               <div className="success-text">
                 Perfeito! Recebemos seus dados e seu pagamento está sendo processado.<br /><br />
                 Em breve você receberá as informações de acesso no <strong style={{ color: '#ffd700' }}>e-mail e WhatsApp</strong> cadastrados.<br /><br />
-                <strong style={{ color: '#ffd700' }}>Nos vemos no dia 02/05! 🚀</strong>
+                <strong style={{ color: '#ffd700' }}>Nos vemos no dia 04/05! 🚀</strong>
               </div>
             </div>
           )}

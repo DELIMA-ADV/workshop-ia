@@ -8,8 +8,8 @@ const DEFAULT_TEMPLATES = {
     label: '✅ Confirmação de Pagamento',
     color: '#50e890',
     trigger: 'Automático (Cartão) ou botão abaixo (Pix/Boleto)',
-    email: 'Olá [Nome]!\n\nSua inscrição no Workshop Claude Jurídico foi recebida com sucesso! Seu pagamento está confirmado e estamos te esperando no dia 02/05 às 10h.\n\nNos vemos lá!\nEquipe Ana Lima',
-    wpp: 'Olá [Nome]! 🎉 Sua inscrição para o Workshop Claude Jurídico foi confirmada! Em breve enviaremos o link de acesso. Nos vemos no dia 02/05! 🚀'
+    email: 'Olá [Nome]!\n\nSua inscrição no Workshop Claude Jurídico foi recebida com sucesso! Seu pagamento está confirmado e estamos te esperando no dia 04/05 às 20h.\n\nNos vemos lá!\nEquipe Ana Lima',
+    wpp: 'Olá [Nome]! 🎉 Sua inscrição para o Workshop Claude Jurídico foi confirmada! Em breve enviaremos o link de acesso. Nos vemos no dia 04/05! 🚀'
   },
   abandoned: {
     label: '🛒 Recuperação de Carrinho',
@@ -22,8 +22,8 @@ const DEFAULT_TEMPLATES = {
     label: '📅 Lembrete 1 DIA Antes',
     color: '#4080ff',
     trigger: 'Manual (botão "Lembrete Dia")',
-    email: 'Olá, [Nome]! É amanhã!\n\nPrepare-se, pois amanhã às 10h daremos início ao nosso Workshop Claude Jurídico.\n\nO link de acesso será enviado 1 hora antes do evento. Fique de olho!\n\nNos vemos amanhã 🚀\nEquipe Ana Lima',
-    wpp: 'Fala [Nome]! 🚀 Passando pra avisar que nosso Workshop é AMANHÃ às 10h! Já deixa o alarme programado. Te mando o link de acesso amanhã cedinho! 😊'
+    email: 'Olá, [Nome]! É amanhã!\n\nPrepare-se, pois amanhã às 20h daremos início ao nosso Workshop Claude Jurídico.\n\nO link de acesso será enviado 1 hora antes do evento. Fique de olho!\n\nNos vemos amanhã 🚀\nEquipe Ana Lima',
+    wpp: 'Fala [Nome]! 🚀 Passando pra avisar que nosso Workshop é AMANHÃ às 20h! Já deixa o alarme programado. Te mando o link de acesso amanhã cedinho! 😊'
   },
   reminder_1h: {
     label: '🚨 Lembrete 1 HORA Antes',
@@ -171,7 +171,7 @@ function Admin() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px', flexWrap: 'wrap', gap: '15px' }}>
           <div>
             <h1 style={{ fontFamily: "'Anton', sans-serif", fontSize: '2.5rem', color: '#E5C07B', margin: 0 }}>PAINEL ADMIN</h1>
-            <p style={{ color: '#9080c0', margin: '4px 0 0', fontSize: '0.9rem' }}>Workshop Claude Jurídico — 02/05/2026</p>
+            <p style={{ color: '#9080c0', margin: '4px 0 0', fontSize: '0.9rem' }}>Workshop Claude Jurídico — 04/05/2026</p>
           </div>
           <button onClick={fetchSubscriptions} style={{ background: '#2a1f5a', color: '#fff', border: '1px solid #4a3f7a', padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>⟳ Atualizar</button>
         </div>
@@ -301,7 +301,7 @@ function Admin() {
                 }}
               />
               <p style={{ color: '#9080c0', fontSize: '0.85rem', marginTop: '6px' }}>
-                Padrão: 02/05/2026 às 10h00
+                Padrão: 04/05/2026 às 20h00
               </p>
             </div>
 

@@ -99,11 +99,11 @@ ${q3 ? `🤖 Como usa IA hoje: ${q3}` : ''}` : '';
       <table style="width:100%;border-collapse:collapse;">
         <tr style="background:#f5f5f5;">
           <td style="padding:8px;border:1px solid #ddd;"><strong>📅 Data:</strong></td>
-          <td style="padding:8px;border:1px solid #ddd;">02 de Maio de 2026 — Sábado</td>
+          <td style="padding:8px;border:1px solid #ddd;">04 de Maio de 2026 — Segunda-feira</td>
         </tr>
         <tr>
           <td style="padding:8px;border:1px solid #ddd;"><strong>🕙 Horário:</strong></td>
-          <td style="padding:8px;border:1px solid #ddd;">10h00 às 12h00 (Horário de Brasília)</td>
+          <td style="padding:8px;border:1px solid #ddd;">20h00 às 22h00 (Horário de Brasília)</td>
         </tr>
         <tr style="background:#f5f5f5;">
           <td style="padding:8px;border:1px solid #ddd;"><strong>📍 Formato:</strong></td>
@@ -124,7 +124,7 @@ ${q3 ? `🤖 Como usa IA hoje: ${q3}` : ''}` : '';
 
     wppText = `Olá ${nome}! 👋 Recebemos sua inscrição para o Workshop Claude Jurídico!
 
-📅 02 de Maio — Sábado, 10h às 12h
+📅 04 de Maio — Segunda-feira, 20h às 22h
 📍 Videoconferência ao vivo
 
 ${pagamentoWpp}${respostasWpp}
@@ -176,18 +176,18 @@ ${q3 ? `🤖 Como usa IA hoje: ${q3}` : ''}` : '';
 
       <div style="background-color:#e8f5e9;padding:15px;border-left:4px solid #4caf50;margin:20px 0;border-radius:0 6px 6px 0;">
         <p><strong style="color:#2e7d32;">✅ Pagamento Recebido</strong></p>
-        <p>Sua inscrição está garantida! Nos vemos no dia 02 de Maio.</p>
+        <p>Sua inscrição está garantida! Nos vemos no dia 04 de Maio.</p>
       </div>
 
       <h3 style="margin-top:20px;">📋 Informações do Workshop</h3>
       <table style="width:100%;border-collapse:collapse;">
         <tr style="background-color:#f5f5f5;">
           <td style="padding:10px;border:1px solid #ddd;"><strong>📅 Data:</strong></td>
-          <td style="padding:10px;border:1px solid #ddd;">${event_date || '02 de Maio de 2026 — Sábado'}</td>
+          <td style="padding:10px;border:1px solid #ddd;">${event_date || '04 de Maio de 2026 — Segunda-feira'}</td>
         </tr>
         <tr>
           <td style="padding:10px;border:1px solid #ddd;"><strong>🕙 Horário:</strong></td>
-          <td style="padding:10px;border:1px solid #ddd;">10h00 às 12h00 (Horário de Brasília)</td>
+          <td style="padding:10px;border:1px solid #ddd;">20h00 às 22h00 (Horário de Brasília)</td>
         </tr>
         <tr style="background-color:#f5f5f5;">
           <td style="padding:10px;border:1px solid #ddd;"><strong>📍 Formato:</strong></td>
@@ -218,7 +218,7 @@ ${q3 ? `🤖 Como usa IA hoje: ${q3}` : ''}` : '';
       ? `🎉 ${nome}, ótimo! Sua inscrição foi confirmada com sucesso!
 
 ✅ Pagamento recebido
-📅 02 de Maio — Sábado, 10h às 12h
+📅 04 de Maio — Segunda-feira, 20h às 22h
 📍 Videoconferência ao vivo
 
 🔗 Link de Acesso:
@@ -228,7 +228,7 @@ Te vejo no workshop! 💪`
       : `🎉 ${nome}, ótimo! Sua inscrição foi confirmada com sucesso!
 
 ✅ Pagamento recebido
-📅 02 de Maio — Sábado, 10h às 12h
+📅 04 de Maio — Segunda-feira, 20h às 22h
 📍 Videoconferência ao vivo
 
 🔔 O link de acesso será enviado 1 hora antes do evento por aqui.${respostasWpp}
@@ -240,10 +240,10 @@ Te vejo no workshop! 💪`;
     html = `
       <h2>Olá, ${nome}!</h2>
       <p>Sua inscrição no <strong>Workshop Claude Jurídico</strong> foi recebida com sucesso!</p>
-      <p>Seu pagamento está sendo processado ou já foi confirmado. Nos vemos no dia 02/05!</p>
+      <p>Seu pagamento está sendo processado ou já foi confirmado. Nos vemos no dia 04/05!</p>
       <p>Atenciosamente,<br/>Equipe Ana Lima</p>
     `;
-    wppText = `Olá ${nome}! 🎉 Sua inscrição para o Workshop Claude Jurídico foi recebida com sucesso! Em breve enviaremos o link de acesso. Nos vemos no dia 02/05!`;
+    wppText = `Olá ${nome}! 🎉 Sua inscrição para o Workshop Claude Jurídico foi recebida com sucesso! Em breve enviaremos o link de acesso. Nos vemos no dia 04/05!`;
 
   } else if (type === 'abandoned') {
     subject = 'Você esqueceu algo? - Workshop Claude Jurídico';
